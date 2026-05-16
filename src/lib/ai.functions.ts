@@ -83,7 +83,7 @@ export const extractDocument = createServerFn({ method: "POST" })
       document_id: data.documentId ?? null,
       user_id: userId,
       doc_type: parsed.doc_type ?? data.docType,
-      fields: parsed.fields ?? {},
+      fields: (parsed.fields ?? {}) as never,
       confidence: parsed.confidence ?? null,
       raw_text: parsed.summary ?? null,
     };
@@ -143,8 +143,8 @@ export const generatePackage = createServerFn({ method: "POST" })
     const { data: pkg, error } = await supabase.from("packages").insert({
       loan_id: data.loanId,
       user_id: userId,
-      summary: parsed,
-      deficiencies: parsed.deficiencies ?? [],
+      summary: parsed as never,
+      deficiencies: (parsed.deficiencies ?? []) as never,
       recommendation: parsed.recommendation ?? null,
     }).select().single();
     if (error) throw new Error(error.message);
