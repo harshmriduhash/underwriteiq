@@ -14,7 +14,249 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      calculations: {
+        Row: {
+          calc_type: string
+          created_at: string
+          formula: string | null
+          id: string
+          inputs: Json
+          loan_id: string
+          result: Json
+          user_id: string
+        }
+        Insert: {
+          calc_type: string
+          created_at?: string
+          formula?: string | null
+          id?: string
+          inputs?: Json
+          loan_id: string
+          result?: Json
+          user_id: string
+        }
+        Update: {
+          calc_type?: string
+          created_at?: string
+          formula?: string | null
+          id?: string
+          inputs?: Json
+          loan_id?: string
+          result?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calculations_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "loans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          created_at: string
+          doc_type: string | null
+          id: string
+          loan_id: string
+          mime_type: string | null
+          name: string
+          size_bytes: number | null
+          status: string
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          doc_type?: string | null
+          id?: string
+          loan_id: string
+          mime_type?: string | null
+          name: string
+          size_bytes?: number | null
+          status?: string
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          doc_type?: string | null
+          id?: string
+          loan_id?: string
+          mime_type?: string | null
+          name?: string
+          size_bytes?: number | null
+          status?: string
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "loans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      extractions: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          doc_type: string | null
+          document_id: string | null
+          fields: Json
+          id: string
+          loan_id: string
+          raw_text: string | null
+          user_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          doc_type?: string | null
+          document_id?: string | null
+          fields?: Json
+          id?: string
+          loan_id: string
+          raw_text?: string | null
+          user_id: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          doc_type?: string | null
+          document_id?: string | null
+          fields?: Json
+          id?: string
+          loan_id?: string
+          raw_text?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extractions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extractions_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "loans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loans: {
+        Row: {
+          borrower_name: string
+          created_at: string
+          id: string
+          loan_amount: number | null
+          loan_product: string
+          property_address: string | null
+          property_value: number | null
+          recommendation: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          borrower_name: string
+          created_at?: string
+          id?: string
+          loan_amount?: number | null
+          loan_product?: string
+          property_address?: string | null
+          property_value?: number | null
+          recommendation?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          borrower_name?: string
+          created_at?: string
+          id?: string
+          loan_amount?: number | null
+          loan_product?: string
+          property_address?: string | null
+          property_value?: number | null
+          recommendation?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      packages: {
+        Row: {
+          created_at: string
+          deficiencies: Json
+          id: string
+          loan_id: string
+          recommendation: string | null
+          summary: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deficiencies?: Json
+          id?: string
+          loan_id: string
+          recommendation?: string | null
+          summary?: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deficiencies?: Json
+          id?: string
+          loan_id?: string
+          recommendation?: string | null
+          summary?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "packages_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "loans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          company: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
