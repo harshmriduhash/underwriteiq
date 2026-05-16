@@ -16,6 +16,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppLoansRouteImport } from './routes/_app.loans'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppLoansLoanIdRouteImport } from './routes/_app.loans.$loanId'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -51,22 +52,29 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
+const AppLoansLoanIdRoute = AppLoansLoanIdRouteImport.update({
+  id: '/$loanId',
+  path: '/$loanId',
+  getParentRoute: () => AppLoansRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/dashboard': typeof AppDashboardRoute
-  '/loans': typeof AppLoansRoute
+  '/loans': typeof AppLoansRouteWithChildren
   '/settings': typeof AppSettingsRoute
+  '/loans/$loanId': typeof AppLoansLoanIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/dashboard': typeof AppDashboardRoute
-  '/loans': typeof AppLoansRoute
+  '/loans': typeof AppLoansRouteWithChildren
   '/settings': typeof AppSettingsRoute
+  '/loans/$loanId': typeof AppLoansLoanIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -75,14 +83,29 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/_app/dashboard': typeof AppDashboardRoute
-  '/_app/loans': typeof AppLoansRoute
+  '/_app/loans': typeof AppLoansRouteWithChildren
   '/_app/settings': typeof AppSettingsRoute
+  '/_app/loans/$loanId': typeof AppLoansLoanIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/signup' | '/dashboard' | '/loans' | '/settings'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/signup'
+    | '/dashboard'
+    | '/loans'
+    | '/settings'
+    | '/loans/$loanId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/signup' | '/dashboard' | '/loans' | '/settings'
+  to:
+    | '/'
+    | '/login'
+    | '/signup'
+    | '/dashboard'
+    | '/loans'
+    | '/settings'
+    | '/loans/$loanId'
   id:
     | '__root__'
     | '/'
@@ -92,6 +115,7 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/loans'
     | '/_app/settings'
+    | '/_app/loans/$loanId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -152,18 +176,37 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/loans/$loanId': {
+      id: '/_app/loans/$loanId'
+      path: '/$loanId'
+      fullPath: '/loans/$loanId'
+      preLoaderRoute: typeof AppLoansLoanIdRouteImport
+      parentRoute: typeof AppLoansRoute
+    }
   }
 }
 
+interface AppLoansRouteChildren {
+  AppLoansLoanIdRoute: typeof AppLoansLoanIdRoute
+}
+
+const AppLoansRouteChildren: AppLoansRouteChildren = {
+  AppLoansLoanIdRoute: AppLoansLoanIdRoute,
+}
+
+const AppLoansRouteWithChildren = AppLoansRoute._addFileChildren(
+  AppLoansRouteChildren,
+)
+
 interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
-  AppLoansRoute: typeof AppLoansRoute
+  AppLoansRoute: typeof AppLoansRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
-  AppLoansRoute: AppLoansRoute,
+  AppLoansRoute: AppLoansRouteWithChildren,
   AppSettingsRoute: AppSettingsRoute,
 }
 
