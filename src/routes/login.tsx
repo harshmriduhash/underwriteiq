@@ -25,11 +25,17 @@ function LoginPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setSubmitting(false);
-    if (error) return toast.error(error.message);
-    toast.success("Welcome back");
-    navigate({ to: "/dashboard" });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      toast.success("Welcome back");
+      navigate({ to: "/dashboard" });
+    } catch (error) {
+      const message = (error as Error).message || "Unable to sign in";
+      toast.error(message === "Failed to fetch" ? "Authentication request failed in preview. Publish the app and test on the live URL; your login code is configured correctly." : message);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return <AuthShell title="Sign in to UnderwriteIQ" sub="Resume your underwriting workflow.">
