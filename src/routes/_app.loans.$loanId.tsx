@@ -313,14 +313,19 @@ function CalcTab({ loanId, userId, extractions, loan, calculations, onSaved }: {
   const [rent, setRent] = useState(numField("gross_monthly_rent") || numField("lease_monthly_rent"));
   const [piti, setPiti] = useState(numField("monthly_piti"));
   const [hoa, setHoa] = useState(numField("hoa"));
+  const [depositsText, setDepositsText] = useState("42100, 38950, 44750, 46200, 41800, 47450, 49200, 45500, 43875, 50100, 48600, 51250");
+  const [expenseFactor, setExpenseFactor] = useState(0.5);
 
   const dscr = calcDSCR({ grossMonthlyRent: rent, piti, hoa });
   const ltv = calcLTV({ loanAmount: Number(loan.loan_amount || 0), propertyValue: Number(loan.property_value || 0) });
+  const monthlyDeposits = depositsText.split(/[\s,]+/).map(v => Number(v.replace(/[^0-9.-]/g, ""))).filter(Number.isFinite);
+  const bankIncome = calcBankStatementIncome({ monthlyDeposits, expenseFactor });
 
   async function save() {
     const rows = [
       { loan_id: loanId, user_id: userId, calc_type: "DSCR", inputs: { rent, piti, hoa } as never, result: dscr as never, formula: dscr.formula },
       { loan_id: loanId, user_id: userId, calc_type: "LTV", inputs: { loanAmount: loan.loan_amount, propertyValue: loan.property_value } as never, result: ltv as never, formula: ltv.formula },
+      { loan_id: loanId, user_id: userId, calc_type: "Bank Statement Income", inputs: { monthlyDeposits, expenseFactor } as never, result: bankIncome as never, formula: bankIncome.formula },
     ];
     const { error } = await supabase.from("calculations").insert(rows);
     if (error) return toast.error(error.message);
@@ -358,6 +363,26 @@ function CalcTab({ loanId, userId, extractions, loan, calculations, onSaved }: {
           <div className="rounded-md bg-surface-2/60 p-3"><div className="text-xs text-muted-foreground font-mono">Property value</div><div className="font-mono">${Number(loan.property_value || 0).toLocaleString()}</div></div>
         </div>
         <Button className="mt-5 w-full" onClick={save}>Save calculations</Button>
+      </div>
+
+      <div className="lg:col-span-2 rounded-xl border border-border bg-surface-1 p-6">
+        <h3 className="font-semibold">Bank statement income</h3>
+        <p className="text-xs text-muted-foreground font-mono mt-1">{bankIncome.formula}</p>
+        <div className="mt-4 grid md:grid-cols-[1fr_180px] gap-3">
+          <div className="space-y-1.5">
+            <Label>Monthly deposits ($, comma-separated)</Label>
+            <Textarea rows={3} value={depositsText} onChange={e => setDepositsText(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Expense factor</Label>
+            <Input type="number" min="0" max="0.95" step="0.05" value={expenseFactor} onChange={e => setExpenseFactor(Number(e.target.value))} />
+          </div>
+        </div>
+        <div className="mt-5 grid md:grid-cols-3 gap-3 text-sm">
+          <div className="rounded-md bg-surface-2/60 p-3"><div className="text-xs text-muted-foreground font-mono">Months reviewed</div><div className="font-mono">{bankIncome.months}</div></div>
+          <div className="rounded-md bg-surface-2/60 p-3"><div className="text-xs text-muted-foreground font-mono">Avg. deposits</div><div className="font-mono">${bankIncome.avgMonthlyDeposit.toLocaleString()}</div></div>
+          <div className="rounded-md bg-surface-2/60 p-3"><div className="text-xs text-muted-foreground font-mono">Qualifying income</div><div className="font-mono text-success">${bankIncome.qualifyingMonthlyIncome.toLocaleString()}</div></div>
+        </div>
       </div>
 
       {calculations.length > 0 && (
