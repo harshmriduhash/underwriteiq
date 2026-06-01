@@ -11,11 +11,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
+    const applySession = (s: Session | null) => {
       setSession(s); setUser(s?.user ?? null); setLoading(false);
+      if (s?.user) void ensureProfile(s.user);
+    };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
+      applySession(s);
     });
     supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s); setUser(s?.user ?? null); setLoading(false);
+      applySession(s);
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -23,3 +27,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <Ctx.Provider value={{ user, session, loading, signOut: async () => { await supabase.auth.signOut(); } }}>{children}</Ctx.Provider>;
 }
 export const useAuth = () => useContext(Ctx);
+
+async function ensureProfile(user: User) {
+  const metadata = user.user_metadata ?? {};
+  await supabase.from("profiles").upsert({
+    id: user.id,
+    full_name: typeof metadata.full_name === "string" ? metadata.full_name : null,
+    company: typeof metadata.company === "string" ? metadata.company : null,
+  }, { onConflict: "id", ignoreDuplicates: true });
+}
