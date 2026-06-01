@@ -420,7 +420,7 @@ function PackageTab({ loanId, pkg, extractions, calculations, onGenerated }: { l
     <div className="space-y-4">
       <div className="rounded-xl border border-border bg-surface-1 p-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-semibold">Underwriting decision package</h3>
+          <h3 className="font-semibold flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Underwriting decision package</h3>
           <p className="text-sm text-muted-foreground">AI synthesizes extractions + calculations into a recommendation.</p>
         </div>
         <Button onClick={go} disabled={busy || !canGen}>
