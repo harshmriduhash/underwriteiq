@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Plus, ArrowRight, Activity, FileCheck2, Clock4, TrendingUp } from "lucide-react";
+import { Plus, ArrowRight, Activity, FileCheck2, Clock4, TrendingUp, CheckCircle2, FileUp, WandSparkles, PackageCheck } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/dashboard")({
@@ -17,6 +17,15 @@ export const Route = createFileRoute("/_app/dashboard")({
 });
 
 const PRODUCTS = ["DSCR", "Bank Statement", "Jumbo", "Fix & Flip", "Foreign National", "Asset Depletion"];
+type NewLoanInput = { borrower_name: string; loan_product: string; property_address: string; loan_amount: number; property_value: number };
+
+const SAMPLE_LOAN: NewLoanInput = {
+  borrower_name: "Avery Chen",
+  loan_product: "DSCR",
+  property_address: "1180 Harbor View Dr, Tampa, FL 33602",
+  loan_amount: 640000,
+  property_value: 875000,
+};
 
 function Dashboard() {
   const { user } = useAuth();
@@ -35,7 +44,7 @@ function Dashboard() {
   });
 
   const create = useMutation({
-    mutationFn: async (input: { borrower_name: string; loan_product: string; property_address: string; loan_amount: number; property_value: number }) => {
+    mutationFn: async (input: NewLoanInput) => {
       const { data, error } = await supabase.from("loans").insert({ ...input, user_id: user!.id }).select().single();
       if (error) throw error;
       return data;
@@ -73,6 +82,13 @@ function Dashboard() {
         <Stat label="Total volume" value={`$${(stats.volume/1_000_000).toFixed(2)}M`} Icon={TrendingUp} />
       </div>
 
+      <OnboardingPanel
+        hasLoans={loans.length > 0}
+        onNewLoan={() => setOpen(true)}
+        onSample={() => create.mutate(SAMPLE_LOAN)}
+        pending={create.isPending}
+      />
+
       <div className="mt-10">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground">Recent loans</h2>
@@ -84,7 +100,10 @@ function Dashboard() {
           ) : loans.length === 0 ? (
             <div className="p-14 text-center">
               <p className="text-muted-foreground">No loans yet.</p>
-              <Button className="mt-4" onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" />Create your first loan</Button>
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" />Create your first loan</Button>
+                <Button variant="outline" onClick={() => create.mutate(SAMPLE_LOAN)} disabled={create.isPending}>Load sample loan</Button>
+              </div>
             </div>
           ) : (
             <table className="w-full text-sm">
@@ -111,6 +130,39 @@ function Dashboard() {
   );
 }
 
+function OnboardingPanel({ hasLoans, onNewLoan, onSample, pending }: { hasLoans: boolean; onNewLoan: () => void; onSample: () => void; pending: boolean }) {
+  const steps = [
+    { title: "Create a loan file", text: "Capture borrower, program, property value and requested loan amount.", Icon: CheckCircle2, done: hasLoans },
+    { title: "Upload or paste documents", text: "Add leases, appraisals, bank statements, IDs, paystubs or tax returns.", Icon: FileUp, done: false },
+    { title: "Run AI extraction", text: "Convert unstructured documents into reviewable fields with confidence scoring.", Icon: WandSparkles, done: false },
+    { title: "Generate package", text: "Produce metrics, strengths, risks, deficiencies, stipulations and recommendation.", Icon: PackageCheck, done: false },
+  ];
+
+  return (
+    <section className="mt-8 rounded-xl border border-border bg-surface-1 p-6 shadow-[var(--shadow-elevated)]">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">Start underwriting in 5 minutes</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Use a real file or load a safe demo scenario to explore the full workflow.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={onSample} disabled={pending}>Load sample loan</Button>
+          <Button onClick={onNewLoan}><Plus className="h-4 w-4 mr-1.5" />New loan</Button>
+        </div>
+      </div>
+      <div className="mt-5 grid md:grid-cols-4 gap-3">
+        {steps.map(({ title, text, Icon, done }) => (
+          <div key={title} className="rounded-lg border border-border bg-surface-2/50 p-4">
+            <Icon className={`h-4 w-4 ${done ? "text-success" : "text-primary"}`} />
+            <div className="mt-3 text-sm font-semibold">{title}</div>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{text}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function Stat({ label, value, Icon }: { label: string; value: string; Icon: React.ComponentType<{className?: string}> }) {
   return (
     <div className="rounded-xl border border-border bg-surface-1 p-5">
@@ -134,7 +186,7 @@ export function StatusBadge({ s }: { s: string }) {
   return <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-mono ${m[s] ?? "bg-muted text-muted-foreground"}`}>{s}</span>;
 }
 
-function NewLoanDialog({ open, onOpenChange, onCreate, pending }: { open: boolean; onOpenChange: (v: boolean) => void; onCreate: (d: { borrower_name: string; loan_product: string; property_address: string; loan_amount: number; property_value: number }) => void; pending: boolean }) {
+function NewLoanDialog({ open, onOpenChange, onCreate, pending }: { open: boolean; onOpenChange: (v: boolean) => void; onCreate: (d: NewLoanInput) => void; pending: boolean }) {
   const [form, setForm] = useState({ borrower_name: "", loan_product: "DSCR", property_address: "", loan_amount: "", property_value: "" });
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

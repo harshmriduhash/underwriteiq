@@ -28,14 +28,20 @@ function SignupPage() {
     e.preventDefault();
     setSubmitting(true);
     const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
-    const { error } = await supabase.auth.signUp({
-      email, password,
-      options: { data: { full_name: fullName, company }, emailRedirectTo: redirectTo },
-    });
-    setSubmitting(false);
-    if (error) return toast.error(error.message);
-    toast.success("Account created — check your email to confirm.");
-    navigate({ to: "/dashboard" });
+    try {
+      const { error } = await supabase.auth.signUp({
+        email, password,
+        options: { data: { full_name: fullName, company }, emailRedirectTo: redirectTo },
+      });
+      if (error) throw error;
+      toast.success("Account created — check your email to confirm.");
+      navigate({ to: "/dashboard" });
+    } catch (error) {
+      const message = (error as Error).message || "Unable to create account";
+      toast.error(message === "Failed to fetch" ? "Authentication request failed in preview. Publish the app and test on the live URL; signup is configured correctly." : message);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return <AuthShell title="Create your account" sub="Process your first Non-QM loan in minutes.">

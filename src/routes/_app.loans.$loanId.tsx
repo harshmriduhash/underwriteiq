@@ -12,10 +12,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "./_app.dashboard";
 import { extractDocument, generatePackage } from "@/lib/ai.functions";
-import { calcDSCR, calcLTV } from "@/lib/calc";
+import { calcBankStatementIncome, calcDSCR, calcLTV } from "@/lib/calc";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Upload, FileText, Sparkles, Calculator, FileCheck2, AlertCircle, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, Upload, FileText, Sparkles, Calculator, FileCheck2, AlertCircle, Loader2, Trash2, ClipboardCheck, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/_app/loans/$loanId")({
   head: () => ({ meta: [{ title: "Loan file — UnderwriteIQ" }] }),
@@ -31,6 +31,24 @@ const DOC_TYPES = [
   "LLC Operating Agreement", "Asset Statement", "Gift Letter",
   "Visa / ITIN", "Driver License", "Other",
 ];
+
+const EXAMPLE_DOCUMENTS = {
+  lease: {
+    name: "Example lease agreement",
+    docType: "Lease Agreement",
+    text: "Lease Agreement. Tenant: Harbor View Holdings LLC. Property: 1180 Harbor View Dr, Tampa, FL 33602. Monthly rent: $7,850. Lease term: 24 months. Start date: 2026-01-01. Security deposit: $7,850. Landlord: Gulf Coast Income Properties.",
+  },
+  appraisal: {
+    name: "Example property appraisal",
+    docType: "Property Appraisal",
+    text: "Uniform Residential Appraisal Report. Subject property: 1180 Harbor View Dr, Tampa, FL 33602. Appraised value: $875,000. Market rent: $7,900 per month. Property type: 2-unit residential investment. Condition: C3. Appraiser notes: stabilized long-term rental demand.",
+  },
+  bank: {
+    name: "Example business bank statement summary",
+    docType: "Bank Statement (Business)",
+    text: "Business bank statement summary for Avery Chen Consulting LLC. Statement period: Jan-Dec 2025. Monthly deposits: 42100, 38950, 44750, 46200, 41800, 47450, 49200, 45500, 43875, 50100, 48600, 51250. Ending balance: $184,320. NSF count: 0.",
+  },
+};
 
 function LoanDetail() {
   const { loanId } = Route.useParams();
@@ -82,6 +100,21 @@ function LoanDetail() {
           <div className="text-xs text-muted-foreground font-mono uppercase tracking-widest">Loan Amount</div>
           <div className="text-2xl font-semibold font-mono">${Number(loan.loan_amount || 0).toLocaleString()}</div>
         </div>
+      </div>
+
+      <div className="mt-6 grid md:grid-cols-4 gap-3">
+        {[
+          ["1", "Collect docs", "Upload or paste lease, appraisal, bank statements and IDs."],
+          ["2", "Extract fields", "AI structures rent, values, deposits, dates and deficiencies."],
+          ["3", "Run calcs", "Validate DSCR, LTV and bank-statement income."],
+          ["4", "Package", "Generate a committee-ready decision narrative."],
+        ].map(([n, title, text]) => (
+          <div key={n} className="rounded-lg border border-border bg-surface-1 p-4">
+            <div className="flex items-center gap-2 text-xs font-mono text-primary"><ClipboardCheck className="h-3.5 w-3.5" /> STEP {n}</div>
+            <div className="mt-2 text-sm font-semibold">{title}</div>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{text}</p>
+          </div>
+        ))}
       </div>
 
       <Tabs defaultValue="docs" className="mt-8">
@@ -169,7 +202,7 @@ function DocumentsTab({ loanId, userId, documents, onChange }: { loanId: string;
     <div className="grid lg:grid-cols-2 gap-4">
       <div className="rounded-xl border border-border bg-surface-1 p-6">
         <h3 className="font-semibold">Upload document</h3>
-        <p className="text-sm text-muted-foreground mt-1">Upload PDFs or images of pay stubs, leases, appraisals, bank statements.</p>
+        <p className="text-sm text-muted-foreground mt-1">Upload images for AI extraction, or paste PDF/OCR text below in this MVP.</p>
         <div className="mt-4 space-y-3">
           <div className="space-y-1.5"><Label>Document type</Label>
             <Select value={docType} onValueChange={setDocType}>
@@ -188,6 +221,13 @@ function DocumentsTab({ loanId, userId, documents, onChange }: { loanId: string;
         <div className="mt-6 border-t border-border pt-5">
           <h4 className="text-sm font-semibold">Or paste document text</h4>
           <p className="text-xs text-muted-foreground mt-1">For text-only docs or pasted content. AI will extract all fields.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {Object.entries(EXAMPLE_DOCUMENTS).map(([key, sample]) => (
+              <Button key={key} type="button" size="sm" variant="outline" onClick={() => { setName(sample.name); setDocType(sample.docType); setText(sample.text); }}>
+                {sample.docType.replace(" Agreement", "")}
+              </Button>
+            ))}
+          </div>
           <div className="mt-3 space-y-2">
             <Input placeholder="Document name (e.g. Pay stub - Jan)" value={name} onChange={e => setName(e.target.value)} />
             <Textarea rows={5} placeholder="Paste the document text here…" value={text} onChange={e => setText(e.target.value)} />
@@ -273,14 +313,19 @@ function CalcTab({ loanId, userId, extractions, loan, calculations, onSaved }: {
   const [rent, setRent] = useState(numField("gross_monthly_rent") || numField("lease_monthly_rent"));
   const [piti, setPiti] = useState(numField("monthly_piti"));
   const [hoa, setHoa] = useState(numField("hoa"));
+  const [depositsText, setDepositsText] = useState("42100, 38950, 44750, 46200, 41800, 47450, 49200, 45500, 43875, 50100, 48600, 51250");
+  const [expenseFactor, setExpenseFactor] = useState(0.5);
 
   const dscr = calcDSCR({ grossMonthlyRent: rent, piti, hoa });
   const ltv = calcLTV({ loanAmount: Number(loan.loan_amount || 0), propertyValue: Number(loan.property_value || 0) });
+  const monthlyDeposits = depositsText.split(/[\s,]+/).map(v => Number(v.replace(/[^0-9.-]/g, ""))).filter(Number.isFinite);
+  const bankIncome = calcBankStatementIncome({ monthlyDeposits, expenseFactor });
 
   async function save() {
     const rows = [
       { loan_id: loanId, user_id: userId, calc_type: "DSCR", inputs: { rent, piti, hoa } as never, result: dscr as never, formula: dscr.formula },
       { loan_id: loanId, user_id: userId, calc_type: "LTV", inputs: { loanAmount: loan.loan_amount, propertyValue: loan.property_value } as never, result: ltv as never, formula: ltv.formula },
+      { loan_id: loanId, user_id: userId, calc_type: "Bank Statement Income", inputs: { monthlyDeposits, expenseFactor } as never, result: bankIncome as never, formula: bankIncome.formula },
     ];
     const { error } = await supabase.from("calculations").insert(rows);
     if (error) return toast.error(error.message);
@@ -320,6 +365,26 @@ function CalcTab({ loanId, userId, extractions, loan, calculations, onSaved }: {
         <Button className="mt-5 w-full" onClick={save}>Save calculations</Button>
       </div>
 
+      <div className="lg:col-span-2 rounded-xl border border-border bg-surface-1 p-6">
+        <h3 className="font-semibold">Bank statement income</h3>
+        <p className="text-xs text-muted-foreground font-mono mt-1">{bankIncome.formula}</p>
+        <div className="mt-4 grid md:grid-cols-[1fr_180px] gap-3">
+          <div className="space-y-1.5">
+            <Label>Monthly deposits ($, comma-separated)</Label>
+            <Textarea rows={3} value={depositsText} onChange={e => setDepositsText(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Expense factor</Label>
+            <Input type="number" min="0" max="0.95" step="0.05" value={expenseFactor} onChange={e => setExpenseFactor(Number(e.target.value))} />
+          </div>
+        </div>
+        <div className="mt-5 grid md:grid-cols-3 gap-3 text-sm">
+          <div className="rounded-md bg-surface-2/60 p-3"><div className="text-xs text-muted-foreground font-mono">Months reviewed</div><div className="font-mono">{bankIncome.months}</div></div>
+          <div className="rounded-md bg-surface-2/60 p-3"><div className="text-xs text-muted-foreground font-mono">Avg. deposits</div><div className="font-mono">${bankIncome.avgMonthlyDeposit.toLocaleString()}</div></div>
+          <div className="rounded-md bg-surface-2/60 p-3"><div className="text-xs text-muted-foreground font-mono">Qualifying income</div><div className="font-mono text-success">${bankIncome.qualifyingMonthlyIncome.toLocaleString()}</div></div>
+        </div>
+      </div>
+
       {calculations.length > 0 && (
         <div className="lg:col-span-2 rounded-xl border border-border bg-surface-1 p-6">
           <h3 className="font-semibold">History</h3>
@@ -355,7 +420,7 @@ function PackageTab({ loanId, pkg, extractions, calculations, onGenerated }: { l
     <div className="space-y-4">
       <div className="rounded-xl border border-border bg-surface-1 p-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-semibold">Underwriting decision package</h3>
+          <h3 className="font-semibold flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Underwriting decision package</h3>
           <p className="text-sm text-muted-foreground">AI synthesizes extractions + calculations into a recommendation.</p>
         </div>
         <Button onClick={go} disabled={busy || !canGen}>
